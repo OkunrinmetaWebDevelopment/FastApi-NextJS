@@ -1,39 +1,44 @@
 import { useState, useEffect } from 'react';
-import { useChat } from 'ai';
 import MessageList from './MessageList';
 import InputForm from './InputForm';
 import { sendMessage, saveConversationHistory } from '../lib/api';
 import { useStore } from '../lib/store';
 
 export default function Chat() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat();
-  const { addMessage, setMessages, getConversationHistory } = useStore();
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { messages, addMessage, setMessages, getConversationHistory } = useStore();
 
   useEffect(() => {
-    // Load conversation history from store when component mounts
     setMessages(getConversationHistory());
-  }, []);
+  }, [setMessages, getConversationHistory]);
 
-  const handleSendMessage = async (e) => {
+  const handleInputChange = (e) => setInput(e.target.value);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || isLoading) return;
 
     const userMessage = { role: 'user', content: input };
     addMessage(userMessage);
+    setInput('');
+    setIsLoading(true);
 
     try {
       const response = await sendMessage(input, getConversationHistory());
-      const aiMessage = { role: 'assistant', content: response };
-      addMessage(aiMessage);
 
-      // Save conversation history to backend
+      if (response && response.content) {
+        addMessage({ role: 'assistant', content: response.content });
+      } else {
+        addMessage({ role: 'system', content: 'Invalid server response.' });
+      }
+
       await saveConversationHistory(getConversationHistory());
     } catch (error) {
-      console.error('Error sending message:', error);
-      addMessage({ role: 'system', content: 'An error occurred while processing your message.' });
+      addMessage({ role: 'system', content: 'Error processing message.' });
+    } finally {
+      setIsLoading(false);
     }
-
-    handleSubmit(e);
   };
 
   return (
@@ -42,7 +47,7 @@ export default function Chat() {
       <InputForm
         input={input}
         handleInputChange={handleInputChange}
-        handleSendMessage={handleSendMessage}
+        handleSubmit={handleSubmit}
         isLoading={isLoading}
       />
     </div>

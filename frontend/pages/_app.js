@@ -7,7 +7,6 @@ function MyApp({ Component, pageProps }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if the user is authenticated on page load
     const token = getAccessToken();
     if (!token && router.pathname !== '/login') {
       router.push('/login');
